@@ -3,8 +3,8 @@ import json
 import re
 from datetime import datetime
 from urllib.parse import urljoin
-from markdownify import markdownify as md
-from playwright.sync_api import sync_playwright
+from markdownify import markdownify as md # type: ignore
+from playwright.sync_api import sync_playwright # type: ignore
 
 BASE_URL = "https://tds.s-anand.net/#/2025-01/"
 BASE_ORIGIN = "https://tds.s-anand.net"
