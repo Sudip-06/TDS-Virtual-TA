@@ -9,5 +9,6 @@ venv/
 .env
 preprocess.py
 tests.yaml
+project-tds-virtual-ta-q1.webp
 *.pyc
 .DS_Store

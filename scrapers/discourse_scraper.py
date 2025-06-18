@@ -1,7 +1,7 @@
 import os
 import json
 from datetime import datetime
-from playwright.sync_api import sync_playwright, TimeoutError # type: ignore
+from playwright.sync_api import sync_playwright, TimeoutError
 from bs4 import BeautifulSoup
 
 # === CONFIG ===
