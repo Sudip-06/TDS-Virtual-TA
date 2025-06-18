@@ -4,7 +4,7 @@ import json
 import sqlite3
 import numpy as np
 import re
-from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Body
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 
 # Constants
 DB_PATH = "knowledge_base.db"
-SIMILARITY_THRESHOLD = 0.68  # Lowered threshold for better recall
-MAX_RESULTS = 10  # Increased to get more context
+SIMILARITY_THRESHOLD = 0.20  # Lowered threshold for better recall
+MAX_RESULTS = 20  # Increased to get more context
 load_dotenv()
 MAX_CONTEXT_CHUNKS = 4  # Increased number of chunks per source
 API_KEY = os.getenv("API_KEY")  # Get API key from environment variable
@@ -146,7 +146,7 @@ async def get_embedding(text, max_retries=3):
         try:
             logger.info(f"Getting embedding for text (length: {len(text)})")
             # Call the embedding API through aipipe proxy
-            url = "https://aipipe.org/openai/v1/embeddings"
+            url = "https://aiproxy.sanand.workers.dev/openai/v1/embeddings"
             headers = {
                 "Authorization": API_KEY,
                 "Content-Type": "application/json"
@@ -426,7 +426,8 @@ async def generate_answer(question, relevant_results, max_retries=2):
             
             logger.info("Sending request to LLM API")
             # Call OpenAI API through aipipe proxy
-            url = "https://aipipe.org/openai/v1/chat/completions"
+            #url = "https://aipipe.org/openai/v1/chat/completions"
+            url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
             headers = {
                 "Authorization": API_KEY,
                 "Content-Type": "application/json"
@@ -480,7 +481,9 @@ async def process_multimodal_query(question, image_base64):
         
         logger.info("Processing multimodal query with image")
         # Call the GPT-4o Vision API to process the image and question
-        url = "https://aipipe.org/openai/v1/chat/completions"
+        #url = "https://aipipe.org/openai/v1/chat/completions"
+        url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
+        
         headers = {
             "Authorization": API_KEY,
             "Content-Type": "application/json"
@@ -596,11 +599,19 @@ def parse_llm_response(response):
         }
 
 # Define API routes
+# ... existing code above ...
+
+# Define API routes
 @app.post("/query")
-async def query_knowledge_base(request: QueryRequest):
+async def query_knowledge_base(request: Request):
     try:
+        # Parse JSON body
+        body = await request.json()
+        question = body.get("question", "")
+        image = body.get("image", None)
+        
         # Log the incoming request
-        logger.info(f"Received query request: question='{request.question[:50]}...', image_provided={request.image is not None}")
+        logger.info(f"Received query request: question='{question[:50]}...', image_provided={image is not None}")
         
         if not API_KEY:
             error_msg = "API_KEY environment variable not set"
@@ -616,8 +627,8 @@ async def query_knowledge_base(request: QueryRequest):
             # Process the query (handle text and optional image)
             logger.info("Processing query and generating embedding")
             query_embedding = await process_multimodal_query(
-                request.question,
-                request.image
+                question,
+                image
             )
             
             # Find similar content
@@ -637,7 +648,7 @@ async def query_knowledge_base(request: QueryRequest):
             
             # Generate answer
             logger.info("Generating answer")
-            llm_response = await generate_answer(request.question, enriched_results)
+            llm_response = await generate_answer(question, enriched_results)
             
             # Parse the response
             logger.info("Parsing LLM response")
@@ -684,6 +695,13 @@ async def query_knowledge_base(request: QueryRequest):
             content={"error": error_msg}
         )
 
+# ... existing code below ...
+@app.get("/")
+async def root():
+    from fastapi.responses import HTMLResponse
+    with open("index.html", "r") as file:
+        return HTMLResponse(content=file.read(), status_code=200)
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
@@ -725,4 +743,6 @@ async def health_check():
         )
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True) 
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+# To run the app, use the command:
+#
